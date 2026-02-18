@@ -1,16 +1,8 @@
 import { useParams, useSearchParams } from "react-router-dom";
 import ReportHeader from "@/components/ReportHeader";
 import ReportFooter from "@/components/ReportFooter";
-import PaginatedEquipmentTable from "@/components/PaginatedEquipmentTable";
-import VibrationAlarmCriticalTable from "@/components/VibrationAlarmCriticalTable";
-import StatusChart from "@/components/StatusChart";
-import { VibrationPrinciplesPage1, VibrationPrinciplesPage1b, VibrationPrinciplesPage2 } from "@/components/VibrationPrinciples";
-import SeverityTable from "@/components/SeverityTable";
-import AccelerationReference from "@/components/AccelerationReference";
-import VibrationOperationalReport from "@/components/VibrationOperationalReport";
-import { useRelatorio } from "@/hooks/useRelatorio";
-import { StatusType } from "@/types/relatorio";
-import { mapVibracaoStatusToStatusType, VibracaoItem } from "@/types/vibracao";
+import { useRelatorio, RelatorioResponse } from "@/hooks/useRelatorio";
+import { UltrasomItem } from "@/types/vibracao";
 
 const Index = () => {
   const { idRelatorio: paramId } = useParams<{
@@ -26,20 +18,50 @@ const Index = () => {
     isLoading,
     error
   } = useRelatorio(idRelatorio);
+
+  // Normalizar dados para suportar tanto vibracao quanto ultrassom
+  const normalizeRelatorio = (response: RelatorioResponse) => {
+    const relatorio = response.relatorio as any;
+    // Se tem array ultrassom, normalize para vibracoes
+    if (relatorio.ultrassom && !relatorio.vibracoes) {
+      relatorio.vibracoes = relatorio.ultrassom.map((item: UltrasomItem) => ({
+        id: item.id || 0,
+        foto: item.foto_painel || item.foto1 || item.foto,
+        foto2: item.foto_camera || item.foto2,
+        setor: item.setor,
+        num_vazamento: item.num_vazamento,
+        localizacao: item.localizacao,
+        componente: item.componente,
+        valor_medido: item.valor_medido,
+        local: item.local || item.localizacao || "",
+        area: item.area || item.setor,
+        conjunto: item.conjunto || "",
+        espectro: null,
+        diagnostico: item.diagnostico,
+        equipamento: null,
+        recomendacao: item.recomendacao,
+        status: item.status,
+        st3: item.status,
+        data_exe: relatorio.dataExe
+      }));
+    }
+    return relatorio;
+  };
+
   const handlePrint = () => {
     window.print();
   };
   if (!idRelatorio) {
     return <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="text-center max-w-md">
-          <h1 className="text-2xl font-bold text-primary mb-4">Relatório de Vibração</h1>
+          <h1 className="text-2xl font-bold text-primary mb-4">Relatório de Ultrassom</h1>
           <p className="text-muted-foreground mb-6">
             Informe o ID do relatório na URL para visualizar os dados.
           </p>
           <div className="bg-secondary/30 rounded-lg p-4 text-sm font-mono">
-            <p>/relatorio/8</p>
+            <p>/relatorio/38</p>
             <p className="text-muted-foreground mt-2">ou</p>
-            <p>/?idRelatorio=8</p>
+            <p>/?idRelatorio=38</p>
           </div>
         </div>
       </div>;
@@ -66,119 +88,47 @@ const Index = () => {
         <p className="text-muted-foreground">Nenhum dado encontrado.</p>
       </div>;
   }
-  const {
-    relatorio
-  } = data;
+
+  // Normalizar dados para suportar tanto vibracao quanto ultrassom
+  const relatorio = normalizeRelatorio(data);
 
   // Usar cliente do response ou do relatorio
   const clienteData = relatorio.cliente;
-  // Usar usuario do response ou do relatorio
-  const usuarioData = relatorio.usuario;
+  // Usar executor do response ou do relatorio
+  const executorData = relatorio.executor;
   // Usar aprovador do response ou do relatorio
   const aprovadorData = relatorio.aprovador;
 
-  const getVibracaoStatus = (item: VibracaoItem): StatusType => {
-    // Priorizar st3 se existir
-    if (item.st3) {
-      return mapVibracaoStatusToStatusType(item.st3);
+  const getReportDateString = () => {
+    if (relatorio.data_execucao) {
+      return relatorio.data_execucao;
     }
-    if (item.status) {
-      return mapVibracaoStatusToStatusType(item.status);
-    }
-    const diagnostico = (item.diagnostico || "").toLowerCase();
-    if (diagnostico.includes("fora de operação") || diagnostico.includes("fora de operacao")) {
-      return "off";
-    }
-    if (item.diagnostico || item.recomendacao) {
-      return "alert";
-    }
-    return "normal";
+    return relatorio.dataExe;
   };
 
-  // Filtrar vibracoes com problemas (apenas A1 e A2, ou seja alert e critical)
-  const criticalEquipment = relatorio.vibracoes
-    .filter((v) => {
-      const status = getVibracaoStatus(v);
-      return status === "alert" || status === "critical";
-    })
-    .map((v, index) => ({
-      id: index + 1,
-      area: v.area || v.equipamento?.area || "",
-      local: v.local,
-      conjunto: v.conjunto,
-      st3: v.st3 || "",
-      data_exe: v.data_exe || relatorio.dataExe,
-      diagnostico: v.diagnostico || "",
-      recomendacao: v.recomendacao || "",
-      status: getVibracaoStatus(v),
-      observation: `VIDE R.O. ${String(index + 1).padStart(2, "0")}`
-    }));
-
-  // Todos os equipamentos
-  const allEquipment = relatorio.vibracoes.map((v, index) => ({
-    id: index + 1,
-    area: v.area || v.equipamento?.area || "",
-    local: v.local || "",
-    conjunto: v.conjunto || "",
-    st3: v.st3 || "",
-    data: v.data_exe || relatorio.dataExe || "",
-    diagnostico: v.diagnostico || "",
-    recomendacao: v.recomendacao || ""
-  }));
-
-
-  // Calcular estatísticas de status
-  const statusCounts = relatorio.vibracoes.reduce((acc, v) => {
-    const status = getVibracaoStatus(v);
-    if (status === "normal") acc.normal++;else if (status === "alert") acc.alert++;else if (status === "critical") acc.critical++;else if (status === "maintenance") acc.maintenance++;else if (status === "off") acc.off++;
-    return acc;
-  }, {
-    normal: 0,
-    alert: 0,
-    critical: 0,
-    maintenance: 0,
-    off: 0
-  });
-  const total = relatorio.vibracoes.length || 1;
-  const statusData = [{
-    label: "NORMAIS",
-    value: Math.round(statusCounts.normal / total * 100),
-    color: "bg-success"
-  }, {
-    label: "EM MANUTENÇÃO",
-    value: Math.round(statusCounts.maintenance / total * 100),
-    color: "bg-muted-foreground"
-  }, {
-    label: "DESLIGADOS",
-    value: Math.round(statusCounts.off / total * 100),
-    color: "bg-border"
-  }, {
-    label: "ALARME",
-    value: Math.round(statusCounts.alert / total * 100),
-    color: "bg-warning"
-  }, {
-    label: "CRÍTICO",
-    value: Math.round(statusCounts.critical / total * 100),
-    color: "bg-destructive"
-  }];
-
-  const hasOperationalSt3 = (item: VibracaoItem) => {
-    const st3 = (item.st3 || "").trim().toUpperCase();
-    return st3 === "A1" || st3 === "A2";
+  const parseDate = (dateStr: string) => {
+    const parts = dateStr.split("/");
+    if (parts.length === 3) {
+      const [day, month, year] = parts;
+      return new Date(Number(year), Number(month) - 1, Number(day));
+    }
+    return new Date(dateStr);
   };
 
-  // Vibracoes com dados para relatorio operacional (apenas A1/A2)
-  const operationalReports = relatorio.vibracoes.filter(hasOperationalSt3);
+  const formatDataExe = (dateStr: string) => {
+    const date = parseDate(dateStr);
+    return date.toLocaleDateString("pt-BR");
+  };
 
   // Formatar data
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const date = parseDate(dateStr);
     return date.toLocaleDateString("pt-BR");
   };
 
   // Formatar data como mês/ano
   const formatMonthYear = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const date = parseDate(dateStr);
     return date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }).replace(/de /g, "");
   };
   return <div className="min-h-screen bg-background py-8 px-4 print:p-0 print:bg-white">
@@ -206,12 +156,12 @@ const Index = () => {
 
             <div className="bg-primary text-primary-foreground py-4 px-6 rounded-lg mb-8">
               <h2 className="text-2xl font-bold">RELATÓRIO DE MANUTENÇÃO PREDITIVA</h2>
-              <p className="text-lg mt-2">REF. INSPEÇÃO ANÁLISE DE VIBRAÇÃO</p>
-              <p className="text-sm mt-2 opacity-80">Nº {relatorio.n_relatorio}</p>
+              <p className="text-lg mt-2">REF. INSPEÇÃO ANÁLISE POR ULTRASSOM</p>
+              <p className="text-sm mt-2 opacity-80">Nº {`${relatorio.id} ${relatorio.num_revisao ?? ""}`.trim()}</p>
             </div>
 
             <div className="mb-8 flex justify-center items-center">
-              <img src="/vibracao-cover.jpg" alt="Imagem de Análise de Vibração" className="cover-image rounded-lg" style={{ width: "320px", height: "240px", objectFit: "cover" }} />
+              <img src="/vibracao-cover.jpg" alt="Imagem de Análise de Ultrassom" className="cover-image rounded-lg" style={{ width: "160px", height: "120px", objectFit: "cover" }} />
             </div>
 
             {clienteData?.logo && <div className="mb-8">
@@ -226,7 +176,7 @@ const Index = () => {
 
             <div className="grid grid-cols-1 gap-8 text-center max-w-lg mx-auto">
               <div>
-                <p className="text-muted-foreground text-sm">Mês de Referência</p>
+                <p className="text-muted-foreground text-sm">Data da Inspeção</p>
                 <p className="font-semibold">{formatMonthYear(relatorio.dataExe)}</p>
               </div>
               
@@ -242,7 +192,7 @@ const Index = () => {
           <ReportHeader />
           
           <div className="text-right text-sm text-muted-foreground mb-8">
-            Jundiaí, {formatDate(relatorio.dataExe)}.
+            Jundiaí, {formatDataExe(relatorio.dataExe)}.
           </div>
 
           <div className="mb-8">
@@ -258,9 +208,13 @@ const Index = () => {
 
           <div className="mb-8">
             
-            <p className="text-foreground leading-relaxed">Referente à inspeção de análise de vibração nos equipamentos rotativos na data de <strong>{formatDate(relatorio.dataExe)}</strong>.
+            <p className="text-foreground leading-relaxed">Referente à inspeção de análise por ultrassom nos equipamentos na data de <strong>{getReportDateString()}</strong>.
               <br />
-              Relatório Nº <strong>{relatorio.n_relatorio}</strong>.
+              Relatório Nº <strong>{`${relatorio.id} ${relatorio.num_revisao ?? ""}`.trim()}</strong>.
+              <br />
+              O princípio do trabalho visa diagnosticar por intermédio do instrumento Digital ultrassonico
+              com indicação em tela LCD, os pontos com vazamento, e o quanto está sendo desperdiçado
+              em termos de vazão de energia, e o quanto representa financeiramente os desperdícios.
             </p>
           </div>
 
@@ -268,94 +222,103 @@ const Index = () => {
             <p className="mb-4">Atenciosamente,</p>
             <div className="border-l-4 border-primary pl-4">
               <p className="font-semibold">Luís Henrique Guimarães Stefani</p>
-              <p className="text-muted-foreground text-sm">Diretor Comercial</p>
+              <p className="text-muted-foreground text-sm">DIETOR COMERCIAL</p>
               <p className="text-sm mt-2">luis@jundpred.com.br</p>
-              <p className="text-sm">Tel.: (11) 2817-0616</p>
-              <p className="text-sm">Cel: (11) 98112-2244</p>
+              <p className="text-sm mt-2">Tel.: (11) 2817-0616</p>
+              <p className="text-sm mt-2">Cel.: (11) 97471-9744</p>
             </div>
           </div>
           </div>
           <ReportFooter />
         </div>
 
-        {/* Vibration Principles Page 1 */}
-        <VibrationPrinciplesPage1 />
+        {/* Vazamentos - 1 por pagina */}
+        {relatorio.vibracoes && relatorio.vibracoes.length > 0 ? (
+          relatorio.vibracoes.map((item, index) => (
+            <div key={item.id || index} className="report-page print-break flex flex-col">
+              <div className="flex-1">
+                <ReportHeader />
 
-        {/* Vibration Principles Page 1b */}
-        <VibrationPrinciplesPage1b />
+                <h2 className="report-title">REGISTRO DE VAZAMENTO {index + 1}</h2>
 
-        {/* Vibration Principles Page 2 */}
-        <VibrationPrinciplesPage2 />
+                <div className="overflow-x-auto mb-6">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-primary text-primary-foreground">
+                        <th className="border border-gray-300 p-2 text-left">#</th>
+                        <th className="border border-gray-300 p-2 text-left">Setor</th>
+                        <th className="border border-gray-300 p-2 text-left">Nº lacre</th>
+                        <th className="border border-gray-300 p-2 text-left">Localização</th>
+                        <th className="border border-gray-300 p-2 text-left">Componente</th>
+                        <th className="border border-gray-300 p-2 text-left">Valor medido</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="hover:bg-secondary/50">
+                        <td className="border border-gray-300 p-2">{index + 1}</td>
+                        <td className="border border-gray-300 p-2">{item.setor || item.area || "-"}</td>
+                        <td className="border border-gray-300 p-2">{item.num_vazamento || "-"}</td>
+                        <td className="border border-gray-300 p-2">{item.localizacao || item.local || "-"}</td>
+                        <td className="border border-gray-300 p-2">{item.componente || "-"}</td>
+                        <td className="border border-gray-300 p-2">{item.valor_medido || "-"}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
 
-        {/* Severity Table Page */}
-        <SeverityTable />
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="border border-gray-300 rounded-lg overflow-hidden">
+                    <p className="vazamento-photo-title">Foto Equipamento</p>
+                    <div className="vazamento-photo-body">
+                      {item.foto ? (
+                        <img
+                          src={item.foto}
+                          alt={`Foto 1 - ${item.localizacao || item.local}`}
+                          className="vazamento-photo"
+                        />
+                      ) : (
+                        <div className="image-placeholder h-full w-full">
+                          <span className="text-xs text-muted-foreground">Sem foto 1</span>
+                        </div>
+                      )}
+                    </div>
+                    <p className="vazamento-photo-caption">Foto 1</p>
+                  </div>
+                  <div className="border border-gray-300 rounded-lg overflow-hidden">
+                    <p className="vazamento-photo-title">Foto Equipamento</p>
+                    <div className="vazamento-photo-body">
+                      {item.foto2 ? (
+                        <img
+                          src={item.foto2}
+                          alt={`Foto 2 - ${item.localizacao || item.local}`}
+                          className="vazamento-photo"
+                        />
+                      ) : (
+                        <div className="image-placeholder h-full w-full">
+                          <span className="text-xs text-muted-foreground">Sem foto 2</span>
+                        </div>
+                      )}
+                    </div>
+                    <p className="vazamento-photo-caption">Foto 2</p>
+                  </div>
+                </div>
+              </div>
 
-        {/* Acceleration Reference Page */}
-        <AccelerationReference />
-
-        {/* Critical Equipment List */}
-        {criticalEquipment.length > 0 && <div className="report-page print-break flex flex-col">
+              <ReportFooter />
+            </div>
+          ))
+        ) : (
+          <div className="report-page print-break flex flex-col">
             <div className="flex-1">
               <ReportHeader />
-              <VibrationAlarmCriticalTable title="RESUMO DOS EQUIPAMENTOS EM ALARME / CRÍTICOS" equipment={criticalEquipment} />
-            </div>
-            <ReportFooter />
-          </div>}
-
-        {/* Full Equipment List */}
-        <PaginatedEquipmentTable
-          title="LISTAGEM GERAL DOS EQUIPAMENTOS"
-          equipment={allEquipment}
-        />
-
-        {/* Status Overview */}
-        <div className="report-page print-break flex flex-col">
-          <div className="flex-1">
-            <ReportHeader />
-            <StatusChart statusData={statusData} />
-          </div>
-          <ReportFooter />
-        </div>
-
-        {/* Operational Reports Header */}
-        {operationalReports.length > 0 && <>
-            <div className="report-page flex flex-col">
-              <ReportHeader />
-              <div className="flex-1 flex flex-col items-center justify-center">
-                <h2 className="report-title text-center text-3xl">RELATÓRIOS OPERACIONAIS</h2>
-                <p className="text-center text-muted-foreground">
-                  Detalhamento das ocorrências encontradas durante a inspeção de análise de vibração
-                </p>
+              <h2 className="report-title">REGISTRO DE VAZAMENTO</h2>
+              <div className="border border-gray-300 p-4 text-center text-muted-foreground">
+                Nenhum equipamento registrado
               </div>
             </div>
-
-            {/* Vibration Operational Reports */}
-            {operationalReports.map((vibracao, index) => (
-              <VibrationOperationalReport
-                key={`vib-${vibracao.id}`}
-                id={String(index + 1).padStart(2, "0")}
-                area={vibracao.area}
-                equipment={vibracao.local}
-                components={vibracao.conjunto}
-                date={formatDate(relatorio.dataExe)}
-                status={getVibracaoStatus(vibracao)}
-                fabricante={vibracao.equipamento?.fabricante || "N/A"}
-                modelo={vibracao.equipamento?.modelo || "N/A"}
-                potencia={vibracao.equipamento?.potencia || "N/A"}
-                rotacao={vibracao.equipamento?.rotacao || "N/A"}
-                alimentacao={vibracao.equipamento?.alimentacao || "N/A"}
-                rolamento={vibracao.equipamento?.rolamento || "N/A"}
-                transmissao={vibracao.equipamento?.transmissao || "N/A"}
-                equipmentImage={vibracao.equipamento?.foto_equipamento || vibracao.foto || ""}
-                spectrumImage={vibracao.espectro || ""}
-                trendImage={vibracao.tendencia || ""}
-                readings={[]}
-                problem={vibracao.diagnostico || "Nao informado"}
-                classification={getVibracaoStatus(vibracao) === "critical" ? "INTERVENCAO IMEDIATA" : getVibracaoStatus(vibracao) === "off" ? "EQUIPAMENTO FORA DE OPERACAO" : "INTERVENCAO PROGRAMADA"}
-                recommendations={vibracao.recomendacao ? [vibracao.recomendacao] : ["Realizar manutencao preventiva"]}
-              />
-            ))}
-          </>}
+            <ReportFooter />
+          </div>
+        )}
 
         {/* Final Considerations */}
         <div className="report-page print-break flex flex-col">
@@ -375,15 +338,17 @@ const Index = () => {
             </p>
           </div>
 
-          <div className="mb-8">
-            <p className="mb-4">Atenciosamente,</p>
-            <div className="border-l-4 border-primary pl-4">
-              <p className="font-semibold">{usuarioData?.nome || 'Nome do Responsável'}</p>
-              <p className="text-muted-foreground text-sm">{usuarioData?.departamento || 'DEPTO. DE PREDITIVA'}</p>
-              <p className="text-sm mt-2">{usuarioData?.email || 'email@jundpred.com.br'}</p>
-              <p className="text-sm">{usuarioData?.telefone || 'Tel.: (11) 2817-0616'}</p>
+          {executorData && (
+            <div className="mb-8">
+              <p className="mb-4">Atenciosamente,</p>
+              <div className="border-l-4 border-primary pl-4">
+                <p className="font-semibold">{executorData.nome}</p>
+                <p className="text-muted-foreground text-sm">{executorData.departamento}</p>
+                <p className="text-sm mt-2">{executorData.email}</p>
+                {executorData.telefone && <p className="text-sm">Tel.: {executorData.telefone}</p>}
+              </div>
             </div>
-          </div>
+          )}
 
           {aprovadorData && (
             <div className="mb-8">
@@ -392,7 +357,7 @@ const Index = () => {
                 <p className="font-semibold">{aprovadorData.nome}</p>
                 <p className="text-muted-foreground text-sm">{aprovadorData.departamento}</p>
                 <p className="text-sm mt-2">{aprovadorData.email}</p>
-                <p className="text-sm">{aprovadorData.telefone}</p>
+                {aprovadorData.telefone && <p className="text-sm">Tel.: {aprovadorData.telefone}</p>}
               </div>
             </div>
           )}

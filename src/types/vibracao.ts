@@ -93,6 +93,57 @@ export interface VibracaoRelatorioResponse {
   relatorio: VibracaoRelatorio;
 }
 
+// Tipos para Ultrassom
+export interface UltrasomCliente {
+  id: number;
+  cnpj: string;
+  logo: string | null;
+  nome: string;
+  ativo: boolean;
+  email: string;
+  cidade: string;
+  estado: string;
+  endereco: string;
+  telefone: string;
+  valor_gas: number;
+  valor_kwh: number;
+  created_at: string;
+  valor_vapor: number | null;
+  horas_trabalho: number;
+  pessoa_contato: string;
+  departamento_contato: string;
+}
+
+export interface UltrasomItem {
+  id?: number;
+  foto?: string | null;
+  local?: string;
+  area?: string;
+  conjunto?: string;
+  diagnostico?: string | null;
+  recomendacao?: string | null;
+  status?: string;
+  [key: string]: any;
+}
+
+export interface UltrasomRelatorio {
+  id: number;
+  n_relatorio: string | null;
+  tipo: string;
+  status: string;
+  dataExe: string;
+  data_execucao: string;
+  tipoVazamento: string | null;
+  num_revisao: string | null;
+  cliente: UltrasomCliente;
+  ultrassom: UltrasomItem[];
+}
+
+export interface UltrasomRelatorioResponse {
+  success?: boolean;
+  relatorio: UltrasomRelatorio;
+}
+
 export interface SeverityLevel {
   range: string;
   classification: string;
