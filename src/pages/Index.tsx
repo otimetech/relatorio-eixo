@@ -3,6 +3,8 @@ import ReportHeader from "@/components/ReportHeader";
 import ReportFooter from "@/components/ReportFooter";
 import { useRelatorio, RelatorioResponse } from "@/hooks/useRelatorio";
 import { UltrasomItem } from "@/types/vibracao";
+import planoVertical from "@/assets/plano-vertical.jpg";
+import planoHorizontal from "@/assets/plano-horizontal.jpg";
 
 const Index = () => {
   const { idRelatorio: paramId } = useParams<{
@@ -19,30 +21,15 @@ const Index = () => {
     error
   } = useRelatorio(idRelatorio);
 
-  // Normalizar dados para suportar tanto vibracao quanto ultrassom
+  // Compatibiliza respostas legadas com o formato usado pela página
   const normalizeRelatorio = (response: RelatorioResponse) => {
     const relatorio = response.relatorio as any;
-    // Se tem array ultrassom, normalize para vibracoes
+    // Reaproveita fotos do formato legado no bloco atual de imagens do serviço
     if (relatorio.ultrassom && !relatorio.vibracoes) {
       relatorio.vibracoes = relatorio.ultrassom.map((item: UltrasomItem) => ({
         id: item.id || 0,
         foto: item.foto_painel || item.foto1 || item.foto,
         foto2: item.foto_camera || item.foto2,
-        setor: item.setor,
-        num_vazamento: item.num_vazamento,
-        localizacao: item.localizacao,
-        componente: item.componente,
-        valor_medido: item.valor_medido,
-        local: item.local || item.localizacao || "",
-        area: item.area || item.setor,
-        conjunto: item.conjunto || "",
-        espectro: null,
-        diagnostico: item.diagnostico,
-        equipamento: null,
-        recomendacao: item.recomendacao,
-        status: item.status,
-        st3: item.status,
-        data_exe: relatorio.dataExe
       }));
     }
     return relatorio;
@@ -54,7 +41,7 @@ const Index = () => {
   if (!idRelatorio) {
     return <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="text-center max-w-md">
-          <h1 className="text-2xl font-bold text-primary mb-4">Relatório de Ultrassom</h1>
+          <h1 className="text-2xl font-bold text-primary mb-4">Relatório de Alinhamento entre Eixos</h1>
           <p className="text-muted-foreground mb-6">
             Informe o ID do relatório na URL para visualizar os dados.
           </p>
@@ -89,7 +76,7 @@ const Index = () => {
       </div>;
   }
 
-  // Normalizar dados para suportar tanto vibracao quanto ultrassom
+  // Compatibiliza respostas legadas com o formato usado pela página
   const relatorio = normalizeRelatorio(data);
 
   // Usar cliente do response ou do relatorio
@@ -98,6 +85,39 @@ const Index = () => {
   const executorData = relatorio.executor;
   // Usar aprovador do response ou do relatorio
   const aprovadorData = relatorio.aprovador;
+  const conjuntoData = relatorio.alinhamentos?.[0];
+  const initialPlanes = [
+    {
+      key: "initial-vertical",
+      title: "Plano vertical",
+      image: planoVertical,
+      primaryValue: conjuntoData?.inicial_vertical_a,
+      secondaryValue: conjuntoData?.inicial_vertical_b,
+    },
+    {
+      key: "initial-horizontal",
+      title: "Plano horizontal",
+      image: planoHorizontal,
+      primaryValue: conjuntoData?.inicial_horizontal_a,
+      secondaryValue: conjuntoData?.inicial_horizontal_b,
+    },
+  ];
+  const finalPlanes = [
+    {
+      key: "final-vertical",
+      title: "Plano vertical",
+      image: planoVertical,
+      primaryValue: conjuntoData?.final_vertical_a,
+      secondaryValue: conjuntoData?.final_vertical_b,
+    },
+    {
+      key: "final-horizontal",
+      title: "Plano horizontal",
+      image: planoHorizontal,
+      primaryValue: conjuntoData?.final_horizontal_a,
+      secondaryValue: conjuntoData?.final_horizontal_b,
+    },
+  ];
 
   const getReportDateString = () => {
     if (relatorio.data_execucao) {
@@ -120,16 +140,41 @@ const Index = () => {
     return date.toLocaleDateString("pt-BR");
   };
 
-  // Formatar data
-  const formatDate = (dateStr: string) => {
-    const date = parseDate(dateStr);
-    return date.toLocaleDateString("pt-BR");
-  };
-
   // Formatar data como mês/ano
   const formatMonthYear = (dateStr: string) => {
     const date = parseDate(dateStr);
     return date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }).replace(/de /g, "");
+  };
+  const renderConditionPlane = (
+    title: string,
+    image: string,
+    primaryValue?: string | null,
+    secondaryValue?: string | null,
+    tone: "initial" | "final" = "initial",
+  ) => {
+    const toneColor = tone === "initial" ? "#db2020" : "#00a63d";
+
+    return <div className="condition-plane-card">
+      <h3 className="condition-plane-title">{title}</h3>
+      <img src={image} alt={title} className="condition-plane-image" />
+      <div className="condition-plane-values">
+        <div className="condition-value-group">
+          <span className="condition-parenthesis">(</span>
+          <span className={`condition-value condition-value-${tone}`} style={{ color: toneColor }}>{primaryValue || "-"}</span>
+          <span className="condition-unit">/100 mm</span>
+          <span className="condition-parenthesis">)</span>
+        </div>
+        <div className="condition-value-group">
+          <span className="condition-parenthesis">(</span>
+          <span className={`condition-value condition-value-${tone}`} style={{ color: toneColor }}>{secondaryValue || "-"}</span>
+          <span className="condition-parenthesis">)</span>
+        </div>
+      </div>
+      <div className="condition-plane-legends">
+        <span>Angular</span>
+        <span>Paralelo</span>
+      </div>
+    </div>;
   };
   return <div className="min-h-screen bg-background py-8 px-4 print:p-0 print:bg-white">
       {/* Print Button */}
@@ -156,12 +201,12 @@ const Index = () => {
 
             <div className="bg-primary text-primary-foreground py-4 px-6 rounded-lg mb-8">
               <h2 className="text-2xl font-bold">RELATÓRIO DE MANUTENÇÃO PREDITIVA</h2>
-              <p className="text-lg mt-2">REF. INSPEÇÃO ANÁLISE POR ULTRASSOM</p>
+              <p className="text-lg mt-2">REF. ALINHAMENTO A LASER (ENTRE EIXOS)</p>
               <p className="text-sm mt-2 opacity-80">Nº {`${relatorio.id} ${relatorio.num_revisao ?? ""}`.trim()}</p>
             </div>
 
             <div className="mb-8 flex justify-center items-center">
-              <img src="/vibracao-cover.jpg" alt="Imagem de Análise de Ultrassom" className="cover-image rounded-lg" style={{ width: "160px", height: "120px", objectFit: "cover" }} />
+              <img src="/alinhamento-cover.jpg" alt="Imagem de Alinhamento a Laser" className="cover-image rounded-lg" style={{ width: "350px", height: "120px", objectFit: "cover" }} />
             </div>
 
             {clienteData?.logo && <div className="mb-8">
@@ -177,7 +222,7 @@ const Index = () => {
             <div className="grid grid-cols-1 gap-8 text-center max-w-lg mx-auto">
               <div>
                 <p className="text-muted-foreground text-sm">Data da Inspeção</p>
-                <p className="font-semibold">{formatMonthYear(relatorio.dataExe)}</p>
+                <p className="font-semibold">{formatMonthYear(getReportDateString())}</p>
               </div>
               
             </div>
@@ -192,7 +237,7 @@ const Index = () => {
           <ReportHeader />
           
           <div className="text-right text-sm text-muted-foreground mb-8">
-            Jundiaí, {formatDataExe(relatorio.dataExe)}.
+            Jundiaí, {formatDataExe(getReportDateString())}.
           </div>
 
           <div className="mb-8">
@@ -208,13 +253,13 @@ const Index = () => {
 
           <div className="mb-8">
             
-            <p className="text-foreground leading-relaxed">Referente à inspeção de análise por ultrassom nos equipamentos na data de <strong>{getReportDateString()}</strong>.
+            <p className="text-foreground leading-relaxed">Referente à inspeção de alinhamento a laser entre eixos nos equipamentos na data de <strong>{getReportDateString()}</strong>.
               <br />
               Relatório Nº <strong>{`${relatorio.id} ${relatorio.num_revisao ?? ""}`.trim()}</strong>.
               <br />
-              O princípio do trabalho visa diagnosticar por intermédio do instrumento Digital ultrassonico
-              com indicação em tela LCD, os pontos com vazamento, e o quanto está sendo desperdiçado
-              em termos de vazão de energia, e o quanto representa financeiramente os desperdícios.
+                O alinhamento a laser entre eixos é a correção quanto as diferenças de posição entre elas através de 
+                instrumentação própria e de alta tecnologia onde são corrigidos com precisão de micros os desvios paralelos e angularmente, 
+                tais desvios que causam os esforços entre os eixos de transmissão e o desgaste prematuro dos mesmos
             </p>
           </div>
 
@@ -222,7 +267,7 @@ const Index = () => {
             <p className="mb-4">Atenciosamente,</p>
             <div className="border-l-4 border-primary pl-4">
               <p className="font-semibold">Luís Henrique Guimarães Stefani</p>
-              <p className="text-muted-foreground text-sm">DIETOR COMERCIAL</p>
+              <p className="text-muted-foreground text-sm">DIRETOR COMERCIAL</p>
               <p className="text-sm mt-2">luis@jundpred.com.br</p>
               <p className="text-sm mt-2">Tel.: (11) 2817-0616</p>
               <p className="text-sm mt-2">Cel.: (11) 97471-9744</p>
@@ -232,93 +277,123 @@ const Index = () => {
           <ReportFooter />
         </div>
 
-        {/* Vazamentos - 1 por pagina */}
-        {relatorio.vibracoes && relatorio.vibracoes.length > 0 ? (
-          relatorio.vibracoes.map((item, index) => (
-            <div key={item.id || index} className="report-page print-break flex flex-col">
-              <div className="flex-1">
-                <ReportHeader />
+        <div className="report-page print-break flex flex-col">
+          <div className="flex-1">
+            <ReportHeader />
 
-                <h2 className="report-title">REGISTRO DE VAZAMENTO {index + 1}</h2>
+            <div className="mt-10 space-y-8 text-foreground">
+              <section>
+                <h2 className="report-title text-left">1. VANTAGENS</h2>
+                <ul className="list-disc pl-6 space-y-3 text-base leading-relaxed">
+                  <li>Não há necessidade de desmontar ou retirar o equipamento do local de trabalho;</li>
+                  <li>Resultados avançados, melhores que métodos convencionais, como por exemplo, relógio comparador ou réguas;</li>
+                  <li>Aumento da vida útil do equipamento em virtude da diminuição dos esforços provocados pelo desalinhamento entre os eixos;</li>
+                  <li>Correção de diversos parâmetros como paralelo e angular;</li>
+                  
+                </ul>
+              </section>
 
-                <div className="overflow-x-auto mb-6">
+              <section>
+                <h2 className="report-title text-left">2. SISTEMAS UTILIZADOS:</h2>
+                <ul className="list-disc pl-6 space-y-3 text-base leading-relaxed">
+                  <li>Alinhador de eixos com precisão a laser;</li>
+                  <li>Coletor de dados vibracionais (espectral);</li>
+                  <li>Maleta de calços calibrados;</li>
+                  <li>Notebook Linha profissional.</li>
+                </ul>
+              </section>
+
+              <p className="pt-6 text-base leading-relaxed">
+                Todos os sensores estão devidamente calibrados e rastreados, conforme procedimento interno Jundpred
+              </p>
+            </div>
+          </div>
+          <ReportFooter />
+        </div>
+
+        <div className="report-page print-break flex flex-col">
+          <div className="flex-1">
+            <ReportHeader />
+
+            <div className="mt-10 space-y-8 text-foreground">
+              <section>
+                <h2 className="report-title text-left">3. DADOS DO CONJUNTO:</h2>
+
+                <div className="overflow-x-auto mb-8">
                   <table className="w-full border-collapse text-sm">
-                    <thead>
-                      <tr className="bg-primary text-primary-foreground">
-                        <th className="border border-gray-300 p-2 text-left">#</th>
-                        <th className="border border-gray-300 p-2 text-left">Setor</th>
-                        <th className="border border-gray-300 p-2 text-left">Nº lacre</th>
-                        <th className="border border-gray-300 p-2 text-left">Localização</th>
-                        <th className="border border-gray-300 p-2 text-left">Componente</th>
-                        <th className="border border-gray-300 p-2 text-left">Valor medido</th>
-                      </tr>
-                    </thead>
                     <tbody>
-                      <tr className="hover:bg-secondary/50">
-                        <td className="border border-gray-300 p-2">{index + 1}</td>
-                        <td className="border border-gray-300 p-2">{item.setor || item.area || "-"}</td>
-                        <td className="border border-gray-300 p-2">{item.num_vazamento || "-"}</td>
-                        <td className="border border-gray-300 p-2">{item.localizacao || item.local || "-"}</td>
-                        <td className="border border-gray-300 p-2">{item.componente || "-"}</td>
-                        <td className="border border-gray-300 p-2">{item.valor_medido || "-"}</td>
+                      <tr className="hover:bg-secondary/30">
+                        <td className="border border-gray-300 p-3 font-semibold bg-secondary/20">Descriçao Equipamento</td>
+                        <td className="border border-gray-300 p-3">{conjuntoData?.equipamento || "-"}</td>
+                      </tr>
+                      <tr className="hover:bg-secondary/30">
+                        <td className="border border-gray-300 p-3 font-semibold bg-secondary/20">Rotação</td>
+                        <td className="border border-gray-300 p-3">{conjuntoData?.velocidade || "-"}</td>
+                      </tr>
+                      <tr className="hover:bg-secondary/30">
+                        <td className="border border-gray-300 p-3 font-semibold bg-secondary/20">Potência</td>
+                        <td className="border border-gray-300 p-3">{conjuntoData?.potencia || "-"}</td>
+                      </tr>
+                      <tr className="hover:bg-secondary/30">
+                        <td className="border border-gray-300 p-3 font-semibold bg-secondary/20">Tolerância</td>
+                        <td className="border border-gray-300 p-3">{conjuntoData?.tolerancia ?? "-"}</td>
+                      </tr>
+                      <tr className="hover:bg-secondary/30">
+                        <td className="border border-gray-300 p-3 font-semibold bg-secondary/20">Nº do Ensaio</td>
+                        <td className="border border-gray-300 p-3">{conjuntoData?.num_ensaio ?? "-"}</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="border border-gray-300 rounded-lg overflow-hidden">
-                    <p className="vazamento-photo-title">Foto Equipamento</p>
-                    <div className="vazamento-photo-body">
-                      {item.foto ? (
-                        <img
-                          src={item.foto}
-                          alt={`Foto 1 - ${item.localizacao || item.local}`}
-                          className="vazamento-photo"
-                        />
-                      ) : (
-                        <div className="image-placeholder h-full w-full">
-                          <span className="text-xs text-muted-foreground">Sem foto 1</span>
-                        </div>
-                      )}
-                    </div>
-                    <p className="vazamento-photo-caption">Foto 1</p>
+                <div className="border border-gray-300 rounded-lg overflow-hidden">
+                  <p className="vazamento-photo-title">Foto do Equipamento</p>
+                  <div className="vazamento-photo-body">
+                    {conjuntoData?.foto_epto ? (
+                      <img
+                        src={conjuntoData.foto_epto}
+                        alt={conjuntoData.equipamento || "Foto do equipamento"}
+                        className="vazamento-photo"
+                      />
+                    ) : (
+                      <div className="image-placeholder h-full w-full">
+                        <span className="text-xs text-muted-foreground">Sem foto do equipamento</span>
+                      </div>
+                    )}
                   </div>
-                  <div className="border border-gray-300 rounded-lg overflow-hidden">
-                    <p className="vazamento-photo-title">Foto Equipamento</p>
-                    <div className="vazamento-photo-body">
-                      {item.foto2 ? (
-                        <img
-                          src={item.foto2}
-                          alt={`Foto 2 - ${item.localizacao || item.local}`}
-                          className="vazamento-photo"
-                        />
-                      ) : (
-                        <div className="image-placeholder h-full w-full">
-                          <span className="text-xs text-muted-foreground">Sem foto 2</span>
-                        </div>
-                      )}
-                    </div>
-                    <p className="vazamento-photo-caption">Foto 2</p>
-                  </div>
+                  <p className="vazamento-photo-caption">Equipamento inspecionado</p>
                 </div>
+              </section>
+            </div>
+          </div>
+          <ReportFooter />
+        </div>
+
+        <div className="report-page print-break flex flex-col">
+          <div className="flex-1">
+            <ReportHeader />
+
+            <div className="mt-5 text-foreground">
+              <h2 className="text-[22px] font-bold uppercase mb-2">CONDIÇÕES INICIAIS</h2>
+              <div className="condition-plane-grid mb-8">
+                {initialPlanes.map((plane) => <div key={plane.key}>
+                    {renderConditionPlane(plane.title, plane.image, plane.primaryValue, plane.secondaryValue, "initial")}
+                  </div>)}
               </div>
 
-              <ReportFooter />
-            </div>
-          ))
-        ) : (
-          <div className="report-page print-break flex flex-col">
-            <div className="flex-1">
-              <ReportHeader />
-              <h2 className="report-title">REGISTRO DE VAZAMENTO</h2>
-              <div className="border border-gray-300 p-4 text-center text-muted-foreground">
-                Nenhum equipamento registrado
+              <h2 className="text-[22px] font-bold uppercase mb-4 mt-8">CONDIÇÕES FINAIS</h2>
+
+              <div className="condition-plane-grid mb-5">
+                {finalPlanes.map((plane) => <div key={plane.key}>
+                    {renderConditionPlane(plane.title, plane.image, plane.primaryValue, plane.secondaryValue, "final")}
+                  </div>)}
               </div>
+
+              
             </div>
-            <ReportFooter />
           </div>
-        )}
+          <ReportFooter />
+        </div>
 
         {/* Final Considerations */}
         <div className="report-page print-break flex flex-col">
@@ -329,9 +404,7 @@ const Index = () => {
           
           <div className="bg-secondary/30 rounded-lg p-6 mb-8">
             <p className="text-foreground leading-relaxed mb-4">
-              As medições realizadas referem-se ao plano de monitoramento
-              dos equipamentos rotativos, método da manutenção preditiva, que avalia a condição atual dos
-              equipamentos por análise das vibrações..
+              {conjuntoData?.comentario || conjuntoData?.status || "-"}
             </p>
             <p className="text-primary font-semibold">
               Muito obrigado pela confiança.
@@ -381,7 +454,7 @@ const Index = () => {
               desc: "Painéis, cabines, fornos, mancais, etc."
             }, {
               title: "Alinhamento a Laser",
-              desc: "De eixos e polias + calços calibrados"
+              desc: "De eixos com laser e calços calibrados"
             }, {
               title: "Balanceamento Dinâmico",
               desc: "Realizado no local – 1 a 4 planos"
