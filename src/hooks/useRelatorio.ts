@@ -6,9 +6,84 @@ import {
   VibracaoRelatorioResponse,
 } from "@/types/vibracao";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
+const DEFAULT_API_BASE_URL = "https://ayfkjjdgrbymmlkuzbig.supabase.co/functions/v1";
+
+const normalizeBaseUrl = (value?: string) => {
+  const trimmedValue = value?.trim();
+
+  if (!trimmedValue) {
+    return null;
+  }
+
+  return trimmedValue.replace(/\/+$/, "");
+};
+
+const API_BASE_URLS = Array.from(
+  new Set([
+    normalizeBaseUrl(import.meta.env.VITE_API_URL),
+    "/api",
+    DEFAULT_API_BASE_URL,
+  ].filter((value): value is string => Boolean(value))),
+);
 
 export type RelatorioResponse = VibracaoRelatorioResponse | UltrasomRelatorioResponse;
+
+type ApiFetchResult<T> = {
+  data: T | null;
+  errors: string[];
+};
+
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Erro desconhecido";
+};
+
+const getUnexpectedResponseMessage = (url: string, contentType: string, bodyText: string) => {
+  const responseSnippet = bodyText.slice(0, 120).replace(/\s+/g, " ").trim();
+  const effectiveContentType = contentType || "desconhecido";
+
+  return `Resposta inesperada da API em ${url} (${effectiveContentType}): ${responseSnippet || "corpo vazio"}`;
+};
+
+const fetchJsonFromApi = async <T>(endpointPath: string): Promise<ApiFetchResult<T>> => {
+  const errors: string[] = [];
+
+  for (const apiBaseUrl of API_BASE_URLS) {
+    const requestUrl = `${apiBaseUrl}${endpointPath}`;
+
+    try {
+      const response = await fetch(requestUrl);
+      const contentType = response.headers.get("content-type") || "";
+
+      if (!response.ok) {
+        const bodyText = await response.text();
+        errors.push(`Erro ao buscar relatório em ${requestUrl}: ${response.status} ${bodyText.slice(0, 120)}`.trim());
+        continue;
+      }
+
+      if (!contentType.includes("application/json")) {
+        const bodyText = await response.text();
+        errors.push(getUnexpectedResponseMessage(requestUrl, contentType, bodyText));
+        continue;
+      }
+
+      return {
+        data: (await response.json()) as T,
+        errors,
+      };
+    } catch (error) {
+      errors.push(`Falha de rede ao buscar ${requestUrl}: ${getErrorMessage(error)}`);
+    }
+  }
+
+  return {
+    data: null,
+    errors,
+  };
+};
 
 const normalizeEixoResponse = (payload: EixoRelatorioResponse): UltrasomRelatorioResponse => {
   const alinhamentos = payload.alinhamento_eixo ?? [];
@@ -48,63 +123,35 @@ const normalizeEixoResponse = (payload: EixoRelatorioResponse): UltrasomRelatori
 };
 
 export const fetchRelatorio = async (idRelatorio: string): Promise<RelatorioResponse> => {
-  const eixoUrl = `${API_BASE_URL}/get-relatorio-eixo?id_relatorio=${idRelatorio}`;
-  const eixoResponse = await fetch(eixoUrl);
+  const queryParam = encodeURIComponent(idRelatorio);
+  const collectedErrors: string[] = [];
 
-  if (eixoResponse.ok) {
-    const contentType = eixoResponse.headers.get("content-type") || "";
-    if (contentType.includes("application/json")) {
-      const eixoData: EixoRelatorioResponse = await eixoResponse.json();
+  const eixoResult = await fetchJsonFromApi<EixoRelatorioResponse>(`/get-relatorio-eixo?id_relatorio=${queryParam}`);
+  collectedErrors.push(...eixoResult.errors);
 
-      if (eixoData?.relatorio?.id && Array.isArray(eixoData.alinhamento_eixo)) {
-        return normalizeEixoResponse(eixoData);
-      }
-    }
+  if (eixoResult.data?.relatorio?.id && Array.isArray(eixoResult.data.alinhamento_eixo)) {
+    return normalizeEixoResponse(eixoResult.data);
   }
 
-  if (eixoResponse.status >= 400) {
-    throw new Error(`Erro ao buscar relatório de eixo: ${eixoResponse.status}`);
+  const ultrasomResult = await fetchJsonFromApi<UltrasomRelatorioResponse>(`/get-relatorio-ultrassom?id_relatorio=${queryParam}`);
+  collectedErrors.push(...ultrasomResult.errors);
+
+  if (ultrasomResult.data?.relatorio?.ultrassom) {
+    return ultrasomResult.data;
   }
 
-  // Tentar buscar dados de Ultrassom primeiro
-  try {
-    const ultrasomUrl = `${API_BASE_URL}/get-relatorio-ultrassom?id_relatorio=${idRelatorio}`;
-    const response = await fetch(ultrasomUrl);
-    
-    if (response.ok) {
-      const contentType = response.headers.get("content-type") || "";
-      if (contentType.includes("application/json")) {
-        const data: UltrasomRelatorioResponse = await response.json();
-        // Se a resposta tem a estrutura de ultrassom, retorna
-        if (data.relatorio && data.relatorio.ultrassom) {
-          return data;
-        }
-      }
-    }
-  } catch (error) {
-    console.warn("Erro ao buscar Ultrassom, tentando Vibracao...", error);
+  const vibracaoResult = await fetchJsonFromApi<VibracaoRelatorioResponse>(`/get-vibracao?id_relatorio=${queryParam}`);
+  collectedErrors.push(...vibracaoResult.errors);
+
+  if (vibracaoResult.data?.success) {
+    return vibracaoResult.data;
   }
 
-  // Fallback para Vibracao
-  const vibracaoUrl = `${API_BASE_URL}/get-vibracao?id_relatorio=${idRelatorio}`;
-  const response = await fetch(vibracaoUrl);
-  
-  if (!response.ok) {
-    throw new Error(`Erro ao buscar relatório: ${response.status}`);
+  if (vibracaoResult.data && !vibracaoResult.data.success) {
+    collectedErrors.push(vibracaoResult.data.error || "Erro ao buscar relatório: resposta inválida");
   }
 
-  const contentType = response.headers.get("content-type") || "";
-  if (!contentType.includes("application/json")) {
-    const bodyText = await response.text();
-    throw new Error(`Resposta inesperada da API: ${bodyText.slice(0, 120)}`);
-  }
-
-  const data: VibracaoRelatorioResponse = await response.json();
-  if (!data.success) {
-    throw new Error("Erro ao buscar relatório: resposta inválida");
-  }
-
-  return data;
+  throw new Error(collectedErrors[0] || "Não foi possível carregar o relatório.");
 };
 
 export const useRelatorio = (idRelatorio: string | null) => {
