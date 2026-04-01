@@ -151,6 +151,9 @@ export interface EixoItem {
   final_horizontal_a?: string | null;
   final_horizontal_b?: string | null;
   foto_epto?: string | null;
+  is_vibracao?: boolean | string | number | null;
+  foto_vibracao?: string | null;
+  obs_vibracao?: string | null;
   comentario?: string | null;
   status?: string | null;
 }

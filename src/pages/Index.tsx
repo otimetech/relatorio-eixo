@@ -119,6 +119,25 @@ const Index = () => {
     },
   ];
 
+  const isVibrationDone = (() => {
+    const value = conjuntoData?.is_vibracao;
+
+    if (typeof value === "boolean") {
+      return value;
+    }
+
+    if (typeof value === "number") {
+      return value === 1;
+    }
+
+    if (typeof value === "string") {
+      const normalizedValue = value.trim().toLowerCase();
+      return ["true", "1", "sim", "yes"].includes(normalizedValue);
+    }
+
+    return false;
+  })();
+
   const getReportDateString = () => {
     if (relatorio.data_execucao) {
       return relatorio.data_execucao;
@@ -206,12 +225,8 @@ const Index = () => {
             </div>
 
             <div className="mb-8 flex justify-center items-center">
-              <img src="/alinhamento-cover.jpg" alt="Imagem de Alinhamento a Laser" className="cover-image rounded-lg" style={{ width: "350px", height: "120px", objectFit: "cover" }} />
+              <img src="/alinhamento-cover.jpg" alt="Imagem de Alinhamento a Laser" className="cover-image rounded-lg" style={{ width: "420px", height: "180px", objectFit: "cover" }} />
             </div>
-
-            {clienteData?.logo && <div className="mb-8">
-              <img src={clienteData.logo} alt={clienteData.nome} className="cover-logo h-20 w-auto mx-auto" />
-            </div>}
 
             {clienteData && <div className="bg-secondary/30 rounded-lg p-4 mb-6 text-center">
                 <h3 className="font-semibold text-primary mb-2">Cliente / Unidade</h3>
@@ -226,6 +241,10 @@ const Index = () => {
               </div>
               
             </div>
+
+            {clienteData?.logo && <div className="mb-8">
+              <img src={clienteData.logo} alt={clienteData.nome} className="cover-logo h-20 w-auto mx-auto" />
+            </div>}
           </div>
 
           <ReportFooter />
@@ -245,9 +264,9 @@ const Index = () => {
             <p className="font-semibold">{clienteData?.pessoa_contato || "Departamento de Manutenção"}</p>
             {clienteData?.departamento_contato && <p className="text-sm text-muted-foreground">{clienteData.departamento_contato}</p>}
             {clienteData && <div className="mt-2 text-sm">
-                <p className="font-medium">{clienteData.nome}</p>
-                <p className="text-muted-foreground">{clienteData.email}</p>
-                <p className="text-muted-foreground">{clienteData.telefone}</p>
+                
+                {/* <p className="text-muted-foreground">{clienteData.email}</p> */}
+                {/* <p className="text-muted-foreground">{clienteData.telefone}</p> */}
               </div>}
           </div>
 
@@ -399,10 +418,47 @@ const Index = () => {
         <div className="report-page print-break flex flex-col">
           <div className="flex-1">
             <ReportHeader />
+
+          <h2 className="report-title mb-2">Serviços Adicionais</h2>
+
+          <div className="bg-secondary/30 rounded-lg px-4 py-3 mb-3">
+            <p className="text-foreground leading-relaxed">
+              <span className="font-semibold">Medição de vibração:</span>{" "}
+              {isVibrationDone ? "Sim" : "Não"}
+            </p>
+          </div>
+
+          {isVibrationDone && (
+            <div className="space-y-4 mb-5">
+              <div className="border border-gray-300 rounded-lg overflow-hidden">
+                <div className="vazamento-photo-body">
+                  {conjuntoData?.foto_vibracao ? (
+                    <img
+                      src={conjuntoData.foto_vibracao}
+                      alt="Foto da medição de vibração"
+                      className="vazamento-photo"
+                    />
+                  ) : (
+                    <div className="image-placeholder h-full w-full">
+                      <span className="text-xs text-muted-foreground">Sem foto da medição de vibração</span>
+                    </div>
+                  )}
+                </div>
+                <p className="vazamento-photo-caption">Registro da medição de vibração</p>
+              </div>
+
+              <div className="bg-secondary/30 rounded-lg p-4">
+                <p className="text-sm font-semibold text-primary mb-2">Comentários</p>
+                <p className="text-foreground leading-relaxed">
+                  {conjuntoData?.obs_vibracao || "Sem observações informadas."}
+                </p>
+              </div>
+            </div>
+          )}
           
-          <h2 className="report-title">CONSIDERAÇÕES FINAIS</h2>
+          <h2 className="report-title mb-3">CONSIDERAÇÕES FINAIS</h2>
           
-          <div className="bg-secondary/30 rounded-lg p-6 mb-8">
+          <div className="bg-secondary/30 rounded-lg p-5 mb-5">
             <p className="text-foreground leading-relaxed mb-4">
               {conjuntoData?.comentario || conjuntoData?.status || "-"}
             </p>
@@ -412,8 +468,8 @@ const Index = () => {
           </div>
 
           {executorData && (
-            <div className="mb-8">
-              <p className="mb-4">Atenciosamente,</p>
+            <div className="mb-5">
+              <p className="mb-3">Atenciosamente,</p>
               <div className="border-l-4 border-primary pl-4">
                 <p className="font-semibold">{executorData.nome}</p>
                 <p className="text-muted-foreground text-sm">{executorData.departamento}</p>
@@ -424,8 +480,8 @@ const Index = () => {
           )}
 
           {aprovadorData && (
-            <div className="mb-8">
-              <p className="mb-4">Aprovado por,</p>
+            <div className="mb-5">
+              <p className="mb-3">Aprovado por,</p>
               <div className="border-l-4 border-primary pl-4">
                 <p className="font-semibold">{aprovadorData.nome}</p>
                 <p className="text-muted-foreground text-sm">{aprovadorData.departamento}</p>
