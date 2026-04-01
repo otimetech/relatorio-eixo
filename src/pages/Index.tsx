@@ -243,7 +243,7 @@ const Index = () => {
             </div>
 
             {clienteData?.logo && <div className="mb-8">
-              <img src={clienteData.logo} alt={clienteData.nome} className="cover-logo h-20 w-auto mx-auto" />
+              <img src={clienteData.logo} alt={clienteData.nome} className="client-cover-logo h-40 w-auto mx-auto object-contain" />
             </div>}
           </div>
 

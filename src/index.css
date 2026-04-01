@@ -796,11 +796,21 @@
     max-width: 55mm !important;
   }
 
+  /* Client logo on cover: larger fixed size in print */
+  img.client-cover-logo {
+    height: 28mm !important;
+    width: auto !important;
+    max-width: 80mm !important;
+    object-fit: contain !important;
+  }
+
   /* Cover image: fixed size in print */
   img.cover-image {
-    height: 80mm !important;
-    width: auto !important;
-    max-width: 140mm !important;
+    width: 111.125mm !important;
+    height: 47.625mm !important;
+    max-width: none !important;
+    max-height: none !important;
+    object-fit: cover !important;
   }
 
   /* Header logo: fixed size in print */
