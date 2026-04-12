@@ -1,6 +1,7 @@
 import { useParams, useSearchParams } from "react-router-dom";
 import ReportHeader from "@/components/ReportHeader";
 import ReportFooter from "@/components/ReportFooter";
+import ReportCoverImage from "@/components/ReportCoverImage";
 import { useRelatorio, RelatorioResponse } from "@/hooks/useRelatorio";
 import { UltrasomItem } from "@/types/vibracao";
 import planoVertical from "@/assets/plano-vertical.jpg";
@@ -138,6 +139,8 @@ const Index = () => {
     return false;
   })();
 
+  const shouldSplitFinalConsiderationsPage = isVibrationDone;
+
   const getReportDateString = () => {
     if (relatorio.data_execucao) {
       return relatorio.data_execucao;
@@ -224,9 +227,10 @@ const Index = () => {
               <p className="text-sm mt-2 opacity-80">Nº {`${relatorio.id} ${relatorio.num_revisao ?? ""}`.trim()}</p>
             </div>
 
-            <div className="mb-8 flex justify-center items-center">
-              <img src="/alinhamento-cover.jpg" alt="Imagem de Alinhamento a Laser" className="cover-image rounded-lg" style={{ width: "420px", height: "180px", objectFit: "cover" }} />
-            </div>
+            <ReportCoverImage
+              src="/alinhamento-cover.jpg"
+              alt="Imagem de Alinhamento a Laser"
+            />
 
             {clienteData && <div className="bg-secondary/30 rounded-lg p-4 mb-6 text-center">
                 <h3 className="font-semibold text-primary mb-2">Cliente / Unidade</h3>
@@ -261,14 +265,13 @@ const Index = () => {
 
           <div className="mb-8">
             <p className="text-sm text-muted-foreground">A/C:</p>
-            <p className="font-semibold">{clienteData?.pessoa_contato || "Departamento de Manutenção"}</p>
-            {clienteData?.departamento_contato && <p className="text-sm text-muted-foreground">{clienteData.departamento_contato}</p>}
             {clienteData && <div className="mt-2 text-sm">
-                
-                {/* <p className="text-muted-foreground">{clienteData.email}</p> */}
+                <p className="text-muted-foreground">{clienteData.pessoa_contato}</p>
                 {/* <p className="text-muted-foreground">{clienteData.telefone}</p> */}
               </div>}
+              {clienteData?.departamento_contato && <p className="font-semibold">{clienteData.departamento_contato}</p>}
           </div>
+          
 
           <div className="mb-8">
             
@@ -455,44 +458,92 @@ const Index = () => {
               </div>
             </div>
           )}
-          
-          <h2 className="report-title mb-3">CONSIDERAÇÕES FINAIS</h2>
-          
-          <div className="bg-secondary/30 rounded-lg p-5 mb-5">
-            <p className="text-foreground leading-relaxed mb-4">
-              {conjuntoData?.comentario || conjuntoData?.status || "-"}
-            </p>
-            <p className="text-primary font-semibold">
-              Muito obrigado pela confiança.
-            </p>
-          </div>
 
-          {executorData && (
-            <div className="mb-5">
-              <p className="mb-3">Atenciosamente,</p>
-              <div className="border-l-4 border-primary pl-4">
-                <p className="font-semibold">{executorData.nome}</p>
-                <p className="text-muted-foreground text-sm">{executorData.departamento}</p>
-                <p className="text-sm mt-2">{executorData.email}</p>
-                {executorData.telefone && <p className="text-sm">Tel.: {executorData.telefone}</p>}
-              </div>
-            </div>
-          )}
+          {!shouldSplitFinalConsiderationsPage && (
+            <>
+              <h2 className="report-title mb-3">CONSIDERAÇÕES FINAIS</h2>
 
-          {aprovadorData && (
-            <div className="mb-5">
-              <p className="mb-3">Aprovado por,</p>
-              <div className="border-l-4 border-primary pl-4">
-                <p className="font-semibold">{aprovadorData.nome}</p>
-                <p className="text-muted-foreground text-sm">{aprovadorData.departamento}</p>
-                <p className="text-sm mt-2">{aprovadorData.email}</p>
-                {aprovadorData.telefone && <p className="text-sm">Tel.: {aprovadorData.telefone}</p>}
+              <div className="bg-secondary/30 rounded-lg p-5 mb-5">
+                <p className="text-foreground leading-relaxed mb-4">
+                  {conjuntoData?.comentario || conjuntoData?.status || "-"}
+                </p>
+                <p className="text-primary font-semibold">
+                  Muito obrigado pela confiança.
+                </p>
               </div>
-            </div>
+
+              {executorData && (
+                <div className="mb-5">
+                  <p className="mb-3">Atenciosamente,</p>
+                  <div className="border-l-4 border-primary pl-4">
+                    <p className="font-semibold">{executorData.nome}</p>
+                    <p className="text-muted-foreground text-sm">{executorData.departamento}</p>
+                    <p className="text-sm mt-2">{executorData.email}</p>
+                    {executorData.telefone && <p className="text-sm">Tel.: {executorData.telefone}</p>}
+                  </div>
+                </div>
+              )}
+
+              {aprovadorData && (
+                <div className="mb-5">
+                  <p className="mb-3">Aprovado por,</p>
+                  <div className="border-l-4 border-primary pl-4">
+                    <p className="font-semibold">{aprovadorData.nome}</p>
+                    <p className="text-muted-foreground text-sm">{aprovadorData.departamento}</p>
+                    <p className="text-sm mt-2">{aprovadorData.email}</p>
+                    {aprovadorData.telefone && <p className="text-sm">Tel.: {aprovadorData.telefone}</p>}
+                  </div>
+                </div>
+              )}
+            </>
           )}
           </div>
           <ReportFooter />
         </div>
+
+        {shouldSplitFinalConsiderationsPage && (
+          <div className="report-page print-break flex flex-col">
+            <div className="flex-1">
+              <ReportHeader />
+
+              <h2 className="report-title mb-3">CONSIDERAÇÕES FINAIS</h2>
+
+              <div className="bg-secondary/30 rounded-lg p-5 mb-5">
+                <p className="text-foreground leading-relaxed mb-4">
+                  {conjuntoData?.comentario || conjuntoData?.status || "-"}
+                </p>
+                <p className="text-primary font-semibold">
+                  Muito obrigado pela confiança.
+                </p>
+              </div>
+
+              {executorData && (
+                <div className="mb-5">
+                  <p className="mb-3">Atenciosamente,</p>
+                  <div className="border-l-4 border-primary pl-4">
+                    <p className="font-semibold">{executorData.nome}</p>
+                    <p className="text-muted-foreground text-sm">{executorData.departamento}</p>
+                    <p className="text-sm mt-2">{executorData.email}</p>
+                    {executorData.telefone && <p className="text-sm">Tel.: {executorData.telefone}</p>}
+                  </div>
+                </div>
+              )}
+
+              {aprovadorData && (
+                <div className="mb-5">
+                  <p className="mb-3">Aprovado por,</p>
+                  <div className="border-l-4 border-primary pl-4">
+                    <p className="font-semibold">{aprovadorData.nome}</p>
+                    <p className="text-muted-foreground text-sm">{aprovadorData.departamento}</p>
+                    <p className="text-sm mt-2">{aprovadorData.email}</p>
+                    {aprovadorData.telefone && <p className="text-sm">Tel.: {aprovadorData.telefone}</p>}
+                  </div>
+                </div>
+              )}
+            </div>
+            <ReportFooter />
+          </div>
+        )}
 
         {/* Services Page */}
         <div className="report-page flex flex-col">
