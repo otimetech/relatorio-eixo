@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import ReportHeader from "@/components/ReportHeader";
 import ReportFooter from "@/components/ReportFooter";
@@ -400,7 +401,8 @@ const Index = () => {
         {/* Vazamentos - 1 por pagina */}
         {relatorio.vibracoes && relatorio.vibracoes.length > 0 ? (
           relatorio.vibracoes.map((item, index) => (
-            <div key={item.id || index} className="report-page print-break flex flex-col">
+            <Fragment key={item.id || index}>
+            <div className="report-page print-break flex flex-col">
               <div className="flex-1">
                 <ReportHeader />
 
@@ -537,6 +539,10 @@ const Index = () => {
           </div>
           <ReportFooter />
         </div>
+
+            </Fragment>
+          ))
+        ) : null}
 
         {/* Final Considerations */}
         <div className="report-page print-break flex flex-col">
