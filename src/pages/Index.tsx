@@ -285,9 +285,10 @@ const Index = () => {
               Relatório Nº <strong>{`${relatorio.id} ${relatorio.num_revisao ?? ""}`.trim()}</strong>.
               <br />
               < br/>
-                O princípio do trabalho visa diagnosticar por intermédio do instrumento Digital ultrassonico
-              com indicação em tela LCD, os pontos com vazamento, e o quanto está sendo desperdiçado
-              em termos de vazão de energia, e o quanto representa financeiramente os desperdícios.
+                O alinhamento a laser entre eixos é a correção quanto as diferenças de posição entre
+                elas através de instrumentação própria e de alta tecnologia onde são corrigidos com
+                precisão de micros os desvios paralelos e angularmente, tais desvios que causam os
+                esforços entre os eixos de transmissão e o desgaste prematuro dos mesmos.
             </p>
           </div>
 
@@ -474,7 +475,7 @@ const Index = () => {
                 <div className="grid grid-cols-1 gap-4">
                   <div className="border border-gray-300 rounded-lg overflow-hidden">
                     <p className="vazamento-photo-title">Foto Equipamento</p>
-                    <div className="vazamento-photo-body">
+                    <div className="vazamento-photo-body report-photo-body">
                       {item.foto ? (
                         <img
                           src={item.foto}
@@ -490,8 +491,8 @@ const Index = () => {
                     <p className="vazamento-photo-caption">Foto 1</p>
                   </div>
                   <div className="border border-gray-300 rounded-lg overflow-hidden">
-                    <p className="vazamento-photo-title">Foto Vazamento</p>
-                    <div className="vazamento-photo-body">
+                    <p className="vazamento-photo-title">Local de Instalação</p>
+                    <div className="vazamento-photo-body report-photo-body">
                       {item.foto2 ? (
                         <img
                           src={item.foto2}
@@ -506,7 +507,6 @@ const Index = () => {
                     </div>
                     <p className="vazamento-photo-caption">Foto 2</p>
                   </div>
-                  <p className="vazamento-photo-caption">Equipamento inspecionado</p>
                 </div>
               </section>
             </div>
@@ -548,32 +548,12 @@ const Index = () => {
         <div className="report-page print-break flex flex-col">
           <div className="flex-1">
             <ReportHeader />
-          
-          <h2 className="report-title">CONSIDERAÇÕES FINAIS</h2>
-          
-          <div className="bg-secondary/30 rounded-lg p-6 mb-8">
-            <p className="text-foreground leading-relaxed mb-4">
-                <p>Sugestões: </p>
-                <p> 1) Recuperar os desperdícios causados pelos pontos de vazamento, elaborando um 
-                planejamento de manutenção com a máxima urgência. </p>
-                <p>2) Consertar unidades de conservação do Ar Comprimido (Sistema de Lubrifil / 
-                Reguladores de Pressão) e manômetros que estejam danificados. </p>
-                <p>3) Sugerimos que os Operadores das Máquinas, após a jornada de trabalho procurem 
-                fechar os registros gerais de cada máquina, como fator de economia 
-                (PROCEDIMENTOS). </p>
-                <p>4) Sugerimos que os Compressores de ar sejam medidos para se diagnosticar a 
-                Performance / Rendimento real. </p>
-                <p>5) A eficiência de um “layout” correto na rede de distribuição de ar comprimido principal e 
-                secundário, poderá contribuir muito para a redução do consumo de energia associado a 
-                perda de carga (queda de pressão). ..</p>
-            </p>
-            <p className="text-primary font-semibold">
-              Muito obrigado pela confiança.
-            </p>
-          </div>
 
           {isVibrationDone && (
-            <div className="space-y-4 mb-5">
+            <>
+              <h2 className="report-title mb-3">INFORMAÇÕES ADICIONAIS</h2>
+
+              <div className="space-y-4 mb-5">
               <div className="border border-gray-300 rounded-lg overflow-hidden">
                 <div className="vazamento-photo-body">
                   {conjuntoData?.foto_vibracao ? (
@@ -597,7 +577,8 @@ const Index = () => {
                   {conjuntoData?.obs_vibracao || "Sem observações informadas."}
                 </p>
               </div>
-            </div>
+              </div>
+            </>
           )}
 
           {!shouldSplitFinalConsiderationsPage && (
@@ -643,6 +624,7 @@ const Index = () => {
         </div>
 
         {shouldSplitFinalConsiderationsPage && (
+          
           <div className="report-page print-break flex flex-col">
             <div className="flex-1">
               <ReportHeader />

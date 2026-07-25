@@ -320,6 +320,10 @@
     height: 280px;
   }
 
+  .report-photo-body {
+    height: 200px;
+  }
+
   .vazamento-photo {
     @apply w-full h-full object-contain;
   }
@@ -912,6 +916,10 @@
 
   .vazamento-photo-body {
     height: 80mm !important;
+  }
+
+  .report-photo-body {
+    height: 55mm !important;
   }
 
   .vazamento-photo {
